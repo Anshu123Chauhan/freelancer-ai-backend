@@ -2,7 +2,7 @@ import swaggerAutogen from "swagger-autogen";
 
 const doc = {
   info: {
-    title: "ECOM Multi-vendor API",
+    title: "Freelancer-AI API",
     description: "Auto-generated API documentation"
   },
   host: "localhost:5000",

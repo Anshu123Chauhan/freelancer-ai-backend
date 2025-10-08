@@ -19,7 +19,7 @@ export const createGig = async (req, res) => {
       hourlyRate,
       images,
     } = req.body;
-   
+
     const authHeader = req.headers["authorization"];
     const token = authHeader && authHeader.split(" ")[1];
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
@@ -29,20 +29,22 @@ export const createGig = async (req, res) => {
         meaasge: "You Are Unauthorized to Access this module",
       });
 
-     const userType = decoded.userType;// assuming auth middleware attaches user
-     let sellerId = decoded._id
+    const userType = decoded.userType; // assuming auth middleware attaches user
+    let sellerId = decoded._id;
 
-  if (userType === "Seller" || userType==="Admin") {
+    if (userType === "Seller" || userType === "Admin") {
       sellerId = decoded._id;
-      console.log(`sellerId ${sellerId}`)
-      
+      console.log(`sellerId ${sellerId}`);
     } else if (userType === "User" && user.parent_type === "Seller") {
       sellerId = decoded.parent_id; // link to main seller
-      console.log(`sellerId ${sellerId}`)
+      console.log(`sellerId ${sellerId}`);
     } else {
-      return res.status(403).json({ message: "Unauthorized: Only Seller or their Staff can create gigs" });
+      return res
+        .status(403)
+        .json({
+          message: "Unauthorized: Only Seller or their Staff can create gigs",
+        });
     }
-     
 
     const gig = await gigService.create({
       sellerId,
@@ -64,14 +66,25 @@ export const createGig = async (req, res) => {
   }
 };
 
-/**
- * @desc Get all gigs (public)
- * @route GET /api/gigs
- */
 export const getAllGigs = async (req, res) => {
   try {
+    const authHeader = req.headers["authorization"];
+    const token = authHeader && authHeader.split(" ")[1];
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    if (!token)
+      return res.status(401).json({
+        sucess: false,
+        meaasge: "You Are Unauthorized to Access this module",
+      });
+
+    const userType = decoded.userType; // assuming auth middleware attaches user
+    let sellerId = decoded._id;
     const { search = "", category, page = 1, limit = 10 } = req.query;
-    const query = { status: "Active" };
+    let query = { status: "Active" };
+    if (userType === "Seller") {
+      sellerId = decoded._id;
+      query = { sellerId };
+    }
 
     if (search) {
       query.title = { $regex: search, $options: "i" };
@@ -80,7 +93,7 @@ export const getAllGigs = async (req, res) => {
 
     const gigs = await gigService
       .find(query)
-      .populate("freelancerId", "title rating")
+      .populate("sellerId")
       .skip((page - 1) * limit)
       .limit(parseInt(limit))
       .sort({ createdAt: -1 });

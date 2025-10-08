@@ -16,15 +16,15 @@ export const productsListing = async (req, res) => {
     page = parseInt(page);
     limit = parseInt(limit);
 
-    // ✅ Always filter only active gigs
-    const baseQuery = { isActive: true };
+    // Always filter only active gigs
+    const baseQuery = { status: "Active" };
 
-    // ✅ Add category filter only if provided
+    //Add category filter only if provided
     if (category && category.trim() !== "") {
       baseQuery.category = category;
     }
 
-    // ✅ Add search filter only if provided
+    //Add search filter only if provided
     if (search && search.trim() !== "") {
       baseQuery.$or = [
         { title: { $regex: search, $options: "i" } },
@@ -33,10 +33,11 @@ export const productsListing = async (req, res) => {
       ];
     }
 
-    // 🧾 Count total results for pagination
+    //Count total results for pagination
     const total = await gigService.countDocuments(baseQuery);
 
-    // 📋 Fetch gigs with populate & pagination
+    //Fetch gigs with populate & pagination
+    console.log(`baseQuery==> ${JSON.stringify(baseQuery)}`)
     const gigs = await gigService.find(baseQuery)
       .populate("sellerId", "name email")
       .select("title description category rating images packages")
@@ -60,20 +61,18 @@ export const productsListing = async (req, res) => {
 export const productDetails = async (req, res) => {
   try {
     const { id } = req.params;
-    const product = await gigService.findById(id).lean()
-      .populate("brand category subCategory vendor");
-    if (!product || product.isDeleted) {
-      return res.status(404).json({ error: "Product not found" });
-    }
-    const relatedProducts = await Product.find({
-      category: product.category,
-      _id: { $ne: id },
-      isDeleted: false
-    }).limit(6);
 
-    res.json({
-      ...product,
-      relatedProducts
+    const gig = await gigService.findById(id)
+      .populate("sellerId", "name email ")
+      .populate("createdBy", "name");
+
+    if (!gig || !gig.status) {
+      return res.status(404).json({ success: false, message: "Gig not found" });
+    }
+
+    res.status(200).json({
+      success: true,
+      gig,
     });
   } catch (err) {
     res.status(500).json({ error: err.message });

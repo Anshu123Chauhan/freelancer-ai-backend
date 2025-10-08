@@ -1,9 +1,21 @@
 import mongoose from 'mongoose'
 
 const orderSchema = new mongoose.Schema({
-  clientId: { type: mongoose.Schema.Types.ObjectId, ref: "User", required: true },
-  freelancerId: { type: mongoose.Schema.Types.ObjectId, ref: "Freelancer", required: true },
-  gigId: { type: mongoose.Schema.Types.ObjectId, ref: "Gig" },
+  gigId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: "Gig",
+    required: true
+  },
+  customerId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: "Customer",
+    required: true
+  },
+  sellerId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: "Seller",
+    required: true
+  },
   
   // --- For package gigs (fixed price) ---
   packageSelected: String,        // Basic / Standard / Premium

@@ -1,8 +1,9 @@
 import { gigService } from "../../../models/Gigs.js";
-import jwt from "jsonwebtoken";
+import jwt, { decode } from "jsonwebtoken";
 import mongoose from "mongoose";
 import { generateSlug } from "../../../utils/slugify.js";
 import dotenv from "dotenv";
+import { v4 as uuidv4 } from "uuid";
 dotenv.config();
 
 export const createGig = async (req, res) => {
@@ -28,16 +29,24 @@ export const createGig = async (req, res) => {
         meaasge: "You Are Unauthorized to Access this module",
       });
 
-     const freelancerId = decoded.userType;// assuming auth middleware attaches user
-    console.log(`freelancerId==>${freelancerId}`);
+     const userType = decoded.userType;// assuming auth middleware attaches user
+     let sellerId = decoded._id
 
-    if (!freelancerId)
-      return res
-        .status(403)
-        .json({ message: "Not authorized as a freelancer." });
+  if (userType === "Seller" || userType==="Admin") {
+      sellerId = decoded._id;
+      console.log(`sellerId ${sellerId}`)
+      
+    } else if (userType === "User" && user.parent_type === "Seller") {
+      sellerId = decoded.parent_id; // link to main seller
+      console.log(`sellerId ${sellerId}`)
+    } else {
+      return res.status(403).json({ message: "Unauthorized: Only Seller or their Staff can create gigs" });
+    }
+     
 
     const gig = await gigService.create({
-      freelancerId,
+      sellerId,
+      createdBy: decode._id,
       title,
       description,
       category,
@@ -47,11 +56,6 @@ export const createGig = async (req, res) => {
       isHourly,
       hourlyRate,
       images,
-    });
-
-    // Update freelancer stats
-    await Freelancer.findByIdAndUpdate(freelancerId, {
-      $inc: { totalOrders: 0 },
     });
 
     res.status(201).json({ success: true, gig });

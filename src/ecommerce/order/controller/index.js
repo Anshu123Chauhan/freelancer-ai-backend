@@ -1,10 +1,10 @@
 // controllers/orderController.js
-import { Order,OrderParent } from "../../../models/Order.js";
+import { Order } from "../../../models/Order.js";
 import nodemailer from "nodemailer";
 import { v4 as uuidv4 } from "uuid";
 import jwt from "jsonwebtoken";
 import {sendMail} from '../../../middleware/sendMail.js'
-import { Cart } from "../../../models/cart.js";
+// import { Cart } from "../../../models/cart.js";
 
 export const placeOrder = async (req, res) => {
   try {

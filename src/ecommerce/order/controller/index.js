@@ -19,7 +19,15 @@ export const placeOrder = async (req, res) => {
         meaasge: "Token is Missing",
       });
     const userId = decoded._id; // assuming middleware adds user
-  const gig = await gigService.findById(gigId);
+  const gig = await gigService.findById(gigId)
+      .populate({
+        path: "sellerId",
+        select: "name email role status"
+      })
+      .populate({
+        path: "createdBy",
+        select: "name role parent_id parent_type"
+      });
     if (!gig) return res.status(404).json({ message: "Gig not found" });
 
     let price = 0, deliveryDate = null, isHourly = gig.isHourly;
@@ -35,9 +43,8 @@ export const placeOrder = async (req, res) => {
 
     const order = await Order.create({
        gigId,
-      customerId,
+      customerId:userId,
       sellerId: gig.sellerId,
-      clientId,
       packageSelected,
       price,
       isHourly,
@@ -64,61 +71,50 @@ export const getCustomerOrders = async (req, res) => {
         sucess: false,
         meaasge: "Token is Missing",
       });
-    const userId = decoded._id; // assuming middleware adds user
 
     //Query params
-    let {
-      page = 1,
-      limit = 10,
-      search = "",
-      sortBy = "createdAt",
-      order = "desc"
-    } = req.query;
-
+   let { page = 1, limit = 10, search = "", sortBy = "createdAt", order = "desc" } = req.query;
+    const customerId = decoded._id; // from token middleware
     page = parseInt(page);
     limit = parseInt(limit);
-    const sortOrder = order === "asc" ? 1 : -1;
 
-    //Base query (only customer’s orders)
-    const query = { userId };
+    // Base query: only this customer's orders
+    const baseQuery = { customerId };
 
-    //Searching
+    //Search support (by orderNumber or gig title)
     if (search) {
-      query.$or = [
+      baseQuery.$or = [
         { orderNumber: { $regex: search, $options: "i" } },
-        { paymentMethod: { $regex: search, $options: "i" } },
-        { paymentStatus: { $regex: search, $options: "i" } },
-        { status: { $regex: search, $options: "i" } }
+        { "gigId.title": { $regex: search, $options: "i" } }
       ];
     }
 
     //Count total
-    const total = await OrderParent.countDocuments(query);
+    const total = await Order.countDocuments(baseQuery);
 
-    //Fetch data
-    const orders = await OrderParent.find(query)
+    //Fetch orders with population
+    const orders = await Order.find(baseQuery)
       .populate({
-        path: "Order",
-        populate: [
-          // { path: "customerId", select: "storeName email" },
-          { path: "items.productId", select: "name image price" }
-        ]
+        path: "gigId",
+        select: "title category packages"
       })
-      .sort({ [sortBy]: sortOrder })
+      .populate({
+        path: "sellerId",
+        select: "name email role"
+      })
+      .populate({
+        path: "customerId",
+        select: "name email"
+      })
+      .sort({ [sortBy]: order === "desc" ? -1 : 1 })
       .skip((page - 1) * limit)
-      .limit(limit)
-      .lean();
-
-    //Pagination metadata
-    const totalPages = Math.ceil(total / limit);
+      .limit(limit);
 
     res.status(200).json({
       success: true,
       total,
-      totalPages,
       page,
       limit,
-      count: orders.length,
       orders
     });
   } catch (err) {

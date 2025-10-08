@@ -5,6 +5,7 @@ import { v4 as uuidv4 } from "uuid";
 import jwt from "jsonwebtoken";
 import {sendMail} from '../../../middleware/sendMail.js'
 // import { Cart } from "../../../models/cart.js";
+import {gigService} from '../../../models/Gigs.js'
 
 export const placeOrder = async (req, res) => {
   try {
@@ -18,7 +19,7 @@ export const placeOrder = async (req, res) => {
         meaasge: "Token is Missing",
       });
     const userId = decoded._id; // assuming middleware adds user
-  const gig = await Gig.findById(gigId);
+  const gig = await gigService.findById(gigId);
     if (!gig) return res.status(404).json({ message: "Gig not found" });
 
     let price = 0, deliveryDate = null, isHourly = gig.isHourly;
@@ -33,9 +34,10 @@ export const placeOrder = async (req, res) => {
     }
 
     const order = await Order.create({
+       gigId,
+      customerId,
+      sellerId: gig.sellerId,
       clientId,
-      freelancerId: gig.freelancerId,
-      gigId,
       packageSelected,
       price,
       isHourly,

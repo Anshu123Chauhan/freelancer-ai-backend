@@ -3,11 +3,15 @@ import mongoose from "mongoose";
 
 const gigSchema = new mongoose.Schema(
   {
-    freelancerId: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: "Freelancer",
-      required: true,
-    },
+  sellerId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: "Seller", // or "User" if Seller stored in User model
+    required: true
+  },
+  createdBy: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: "User", // Staff or seller who created
+  },
     title: { type: String, required: true },
     description: String,
     category: { type: mongoose.Schema.Types.ObjectId, ref: "Category" },

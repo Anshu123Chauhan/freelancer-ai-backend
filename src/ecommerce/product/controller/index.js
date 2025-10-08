@@ -4,55 +4,52 @@ import {gigService} from '../../../models/Gigs.js';
 
 export const productsListing = async (req, res) => {
   try {
-    const { minPrice, maxPrice, page = 1, limit = 10 } = req.query;
-    const { brand, category, subcategory, attributes } = req.body;
+   let {
+      page = 1,
+      limit = 10,
+      search = "",
+      sortBy = "createdAt",
+      order = "desc",
+      category
+    } = req.query;
 
-    const filter = { isDeleted: false, status: "active" };
-    if (brand) filter.brand = brand;
-    if (category) filter.category = category;
-    if (subcategory) filter.subCategory = subcategory;
+    page = parseInt(page);
+    limit = parseInt(limit);
 
-    if (minPrice || maxPrice) {
-      filter["variants.price"] = {};
-      if (minPrice) filter["variants.price"].$gte = Number(minPrice);
-      if (maxPrice) filter["variants.price"].$lte = Number(maxPrice);
+    // ✅ Always filter only active gigs
+    const baseQuery = { isActive: true };
+
+    // ✅ Add category filter only if provided
+    if (category && category.trim() !== "") {
+      baseQuery.category = category;
     }
 
-    if (attributes && Array.isArray(attributes) && attributes.length > 0) {
-      filter["$and"] = attributes.map(attr => ({
-        "variants.attributes": {
-          $elemMatch: { type: attr.type, value: attr.value }
-        }
-      }));
+    // ✅ Add search filter only if provided
+    if (search && search.trim() !== "") {
+      baseQuery.$or = [
+        { title: { $regex: search, $options: "i" } },
+        { description: { $regex: search, $options: "i" } },
+        { category: { $regex: search, $options: "i" } }
+      ];
     }
 
-    const skip = (parseInt(page) - 1) * parseInt(limit);
+    // 🧾 Count total results for pagination
+    const total = await gigService.countDocuments(baseQuery);
 
-    let products = await gigService.find(filter)
-      .skip(skip)
-      .limit(parseInt(limit))
-      .lean();
+    // 📋 Fetch gigs with populate & pagination
+    const gigs = await gigService.find(baseQuery)
+      .populate("sellerId", "name email")
+      .select("title description category rating images packages")
+      .sort({ [sortBy]: order === "desc" ? -1 : 1 })
+      .skip((page - 1) * limit)
+      .limit(limit);
 
-    products = products.map((p) => {
-      if (p.variants && p.variants.length > 0) {
-        const minVariantPrice = Math.min(...p.variants.map(v => v.price));
-        const maxVariantPrice = Math.max(...p.variants.map(v => v.price));
-        return { ...p, price: { min: minVariantPrice, max: maxVariantPrice } };
-      } else {
-        return { ...p, price: { min: p.sellingPrice, max: p.sellingPrice } };
-      }
-    });
-
-    const total = await gigService.countDocuments(filter);
-
-    res.json({
+    res.status(200).json({
       success: true,
-      products,
-      pagination: {
-        total,
-        page: parseInt(page),
-        pages: Math.ceil(total / limit),
-      },
+      total,
+      page,
+      limit,
+      gigs,
     });
   } catch (err) {
     console.error("Error in productsListing:", err);

@@ -35,7 +35,7 @@ export const createGig = async (req, res) => {
     if (userType === "Seller" || userType === "Admin") {
       sellerId = decoded._id;
       console.log(`sellerId ${sellerId}`);
-    } else if (userType === "User" && user.parent_type === "Seller") {
+    } else if (userType === "User" && decoded.parent_type === "Seller") {
       sellerId = decoded.parent_id; // link to main seller
       console.log(`sellerId ${sellerId}`);
     } else {
@@ -45,7 +45,7 @@ export const createGig = async (req, res) => {
           message: "Unauthorized: Only Seller or their Staff can create gigs",
         });
     }
-
+console.log(`sellerId===>${sellerId}`)
     const gig = await gigService.create({
       sellerId,
       createdBy: decode._id,

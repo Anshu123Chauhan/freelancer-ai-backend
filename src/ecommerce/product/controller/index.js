@@ -1,6 +1,6 @@
 import Brand from '../../../models/Brand.js';
 import {Category,Subcategory} from '../../../models/Category.js';
-import {Product} from '../../../models/Product.js';
+import {gigService} from '../../../models/Gigs.js';
 
 export const productsListing = async (req, res) => {
   try {
@@ -28,7 +28,7 @@ export const productsListing = async (req, res) => {
 
     const skip = (parseInt(page) - 1) * parseInt(limit);
 
-    let products = await Product.find(filter)
+    let products = await gigService.find(filter)
       .skip(skip)
       .limit(parseInt(limit))
       .lean();
@@ -43,7 +43,7 @@ export const productsListing = async (req, res) => {
       }
     });
 
-    const total = await Product.countDocuments(filter);
+    const total = await gigService.countDocuments(filter);
 
     res.json({
       success: true,
@@ -63,7 +63,7 @@ export const productsListing = async (req, res) => {
 export const productDetails = async (req, res) => {
   try {
     const { id } = req.params;
-    const product = await Product.findById(id).lean()
+    const product = await gigService.findById(id).lean()
       .populate("brand category subCategory vendor");
     if (!product || product.isDeleted) {
       return res.status(404).json({ error: "Product not found" });

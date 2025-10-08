@@ -8,16 +8,7 @@ import {sendMail} from '../../../middleware/sendMail.js'
 
 export const placeOrder = async (req, res) => {
   try {
-    const {
-      orderNumber,
-      items,
-      shippingAddress,
-      paymentMethod,
-      shippingMethod,
-      shippingCost,
-      status,
-      total,
-    } = req.body;
+      const { gigId, packageSelected, totalHours } = req.body;
     const authHeader = req.headers["authorization"];
     const token = authHeader && authHeader.split(" ")[1];
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
@@ -27,69 +18,35 @@ export const placeOrder = async (req, res) => {
         meaasge: "Token is Missing",
       });
     const userId = decoded._id; // assuming middleware adds user
-    const ourPaymentTransactionId = `${paymentMethod}-${uuidv4()}`;
+  const gig = await Gig.findById(gigId);
+    if (!gig) return res.status(404).json({ message: "Gig not found" });
 
-     //Group items by sellerId
-    const itemsBySeller = {};
-    items.forEach(item => {
-      if (!itemsBySeller[item.sellerId]) {
-        itemsBySeller[item.sellerId] = [];
-      }
-      itemsBySeller[item.sellerId].push(item);
-    });
+    let price = 0, deliveryDate = null, isHourly = gig.isHourly;
 
-    //Create parent order
-    const parentOrder = await OrderParent.create({
-      userId,
-      orderNumber,
-      totalAmount: total,
-      paymentMethod,
-      paymentStatus: paymentMethod === "cod" ? "not_required" : "pending",
-      ourPaymentTransactionId,
-      shippingAddress,
-      shippingMethod,
-      shippingCost,
-      status
-    });
-
-    const subOrderIds = [];
-
-    //Create sub-orders per seller
-    for (const [sellerId, sellerItems] of Object.entries(itemsBySeller)) {
-      const subtotalSeller = sellerItems.reduce((sum, i) => sum + i.price * i.qty, 0);
-
-      const subOrder = await Order.create({
-        parentOrderId: parentOrder._id,
-        customerId:sellerId,
-        userId,
-        orderNumber: `${uuidv4()}`, // unique per seller
-        items: sellerItems,
-        subtotal: subtotalSeller,
-        total: subtotalSeller,
-        paymentMethod,
-        paymentStatus: paymentMethod === "cod" ? "not_required" : "pending",
-        shippingAddress
-      });
-
-      subOrderIds.push(subOrder._id);
+    if (isHourly) {
+      price = gig.hourlyRate * totalHours;
+    } else {
+      const selectedPackage = gig.packages.find(p => p.name === packageSelected);
+      if (!selectedPackage) return res.status(400).json({ message: "Invalid package selected" });
+      price = selectedPackage.price;
+      deliveryDate = new Date(Date.now() + selectedPackage.deliveryTime * 86400000);
     }
 
-    // Update parent order with sub-orders
-    parentOrder.subOrders = subOrderIds;
-    await parentOrder.save();
-    await Cart.findByIdAndDelete(orderNumber);
-
-    // Send confirmation email
-    await sendMail(shippingAddress.email, "Order Confirmed", `Your order ${orderNumber} has been placed successfully.`);
-    
-
-    res.status(201).json({
-      success: true,
-      message: "Order placed successfully",
-      parentOrder,
-      subOrders: subOrderIds
+    const order = await Order.create({
+      clientId,
+      freelancerId: gig.freelancerId,
+      gigId,
+      packageSelected,
+      price,
+      isHourly,
+      hourlyRate: gig.hourlyRate,
+      totalHours,
+      totalPrice: price,
+      deliveryDate,
+      status: "Pending",
     });
-    
+
+    res.status(201).json({ success: true, order });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }

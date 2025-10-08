@@ -7,10 +7,34 @@ dotenv.config();
 
 export const createGig = async (req, res) => {
   try {
-    const { title, description, category, subcategory, tags, packages, isHourly, hourlyRate, images } = req.body;
-    const freelancerId = req.user.freelancerProfile; // assuming auth middleware attaches user
+    const {
+      title,
+      description,
+      category,
+      subcategory,
+      tags,
+      packages,
+      isHourly,
+      hourlyRate,
+      images,
+    } = req.body;
+   
+    const authHeader = req.headers["authorization"];
+    const token = authHeader && authHeader.split(" ")[1];
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    if (!token)
+      return res.status(401).json({
+        sucess: false,
+        meaasge: "You Are Unauthorized to Access this module",
+      });
 
-    if (!freelancerId) return res.status(403).json({ message: "Not authorized as a freelancer." });
+     const freelancerId = decoded.userType;// assuming auth middleware attaches user
+    console.log(`freelancerId==>${freelancerId}`);
+
+    if (!freelancerId)
+      return res
+        .status(403)
+        .json({ message: "Not authorized as a freelancer." });
 
     const gig = await gigService.create({
       freelancerId,
@@ -26,7 +50,9 @@ export const createGig = async (req, res) => {
     });
 
     // Update freelancer stats
-    await Freelancer.findByIdAndUpdate(freelancerId, { $inc: { totalOrders: 0 } });
+    await Freelancer.findByIdAndUpdate(freelancerId, {
+      $inc: { totalOrders: 0 },
+    });
 
     res.status(201).json({ success: true, gig });
   } catch (error) {
@@ -48,7 +74,8 @@ export const getAllGigs = async (req, res) => {
     }
     if (category) query.category = category;
 
-    const gigs = await gigService.find(query)
+    const gigs = await gigService
+      .find(query)
       .populate("freelancerId", "title rating")
       .skip((page - 1) * limit)
       .limit(parseInt(limit))
@@ -68,7 +95,8 @@ export const getAllGigs = async (req, res) => {
  */
 export const getGigById = async (req, res) => {
   try {
-    const gig = await gigService.findById(req.params.id)
+    const gig = await gigService
+      .findById(req.params.id)
       .populate("freelancerId", "title bio rating");
 
     if (!gig) return res.status(404).json({ message: "Gig not found" });
@@ -91,7 +119,9 @@ export const updateGig = async (req, res) => {
 
     // Check ownership
     if (gig.freelancerId.toString() !== req.user.freelancerProfile)
-      return res.status(403).json({ message: "You can only update your own gigs" });
+      return res
+        .status(403)
+        .json({ message: "You can only update your own gigs" });
 
     Object.assign(gig, req.body);
     await gig.save();

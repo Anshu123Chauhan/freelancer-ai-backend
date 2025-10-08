@@ -1,6 +1,7 @@
 // support multiple packages and optional hourly gigs
 import mongoose from "mongoose";
 
+
 const gigSchema = new mongoose.Schema(
   {
   sellerId: {

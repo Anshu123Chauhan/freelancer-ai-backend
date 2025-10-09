@@ -93,7 +93,7 @@ export const getAllGigs = async (req, res) => {
 
     const gigs = await gigService
       .find(query)
-      .populate("sellerId")
+      .populate("sellerId","email _id businessName phone isActive")
       .skip((page - 1) * limit)
       .limit(parseInt(limit))
       .sort({ createdAt: -1 });
@@ -114,7 +114,7 @@ export const getGigById = async (req, res) => {
   try {
     const gig = await gigService
       .findById(req.params.id)
-      .populate("freelancerId", "title bio rating");
+      .populate("sellerId", "email _id businessName phone isActive");
 
     if (!gig) return res.status(404).json({ message: "Gig not found" });
 
@@ -124,21 +124,35 @@ export const getGigById = async (req, res) => {
   }
 };
 
-/**
- * @desc Update gig
- * @route PUT /api/gigs/:id
- * @access Freelancer only
- */
 export const updateGig = async (req, res) => {
   try {
-    const gig = await gigService.findById(req.params.id);
-    if (!gig) return res.status(404).json({ message: "Gig not found" });
 
     // Check ownership
-    if (gig.freelancerId.toString() !== req.user.freelancerProfile)
-      return res
-        .status(403)
-        .json({ message: "You can only update your own gigs" });
+    const authHeader = req.headers["authorization"];
+    const token = authHeader && authHeader.split(" ")[1];
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    if (!token)
+      return res.status(401).json({
+        sucess: false,
+        meaasge: "You Are Unauthorized to Access this module",
+      });
+
+    const userType = decoded.userType; // assuming auth middleware attaches user
+    let sellerId = decoded._id;
+    let query = { _id: req.params.id };
+  
+    if (userType === "Seller") {
+      sellerId = decoded._id;
+      query = {sellerId}
+      
+    }
+    console.log(query)
+    const gig = await gigService.find(query);
+    if (!gig) return res.status(404).json({ message: "Gig not found" });
+    // if (gig.sellerId.toString() !== req.user.freelancerProfile)
+    //   return res
+    //     .status(403)
+    //     .json({ message: "You can only update your own gigs" });
 
     Object.assign(gig, req.body);
     await gig.save();

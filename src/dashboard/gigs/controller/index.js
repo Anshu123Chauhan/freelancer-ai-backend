@@ -34,10 +34,10 @@ export const createGig = async (req, res) => {
 
     if (userType === "Seller" || userType === "Admin") {
       sellerId = decoded._id;
-      console.log(`sellerId ${sellerId}`);
+      // console.log(`sellerId ${sellerId}`);
     } else if (userType === "User" && decoded.parent_type === "Seller") {
       sellerId = decoded.parent_id; // link to main seller
-      console.log(`sellerId ${sellerId}`);
+      // console.log(`sellerId ${sellerId}`);
     } else {
       return res
         .status(403)
@@ -45,7 +45,7 @@ export const createGig = async (req, res) => {
           message: "Unauthorized: Only Seller or their Staff can create gigs",
         });
     }
-console.log(`sellerId===>${sellerId}`)
+// console.log(`sellerId===>${sellerId}`)
     const gig = await gigService.create({
       sellerId,
       createdBy: decode._id,
@@ -126,35 +126,54 @@ export const getGigById = async (req, res) => {
 
 export const updateGig = async (req, res) => {
   try {
+    const {
+      title,
+      description,
+      category,
+      subcategory,
+      tags,
+      packages,
+      isHourly,
+      hourlyRate,
+      images,
+    } = req.body;
 
-    // Check ownership
+    // Auth check
     const authHeader = req.headers["authorization"];
     const token = authHeader && authHeader.split(" ")[1];
-    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+
     if (!token)
       return res.status(401).json({
-        sucess: false,
-        meaasge: "You Are Unauthorized to Access this module",
+        success: false,
+        message: "Unauthorized",
       });
 
-    const userType = decoded.userType; // assuming auth middleware attaches user
-    let sellerId = decoded._id;
-    let query = { _id: req.params.id };
-  
-    if (userType === "Seller") {
-      sellerId = decoded._id;
-      query = {sellerId}
-      
-    }
-    console.log(query)
-    const gig = await gigService.find(query);
-    if (!gig) return res.status(404).json({ message: "Gig not found" });
-    // if (gig.sellerId.toString() !== req.user.freelancerProfile)
-    //   return res
-    //     .status(403)
-    //     .json({ message: "You can only update your own gigs" });
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    const userType = decoded.userType;
 
-    Object.assign(gig, req.body);
+    let query = { _id: req.params.id };
+
+    if (userType === "Seller") {
+      query = { _id: req.params.id, sellerId: decoded._id };
+    }
+
+    const gig = await gigService.findOne(query);
+
+    if (!gig)
+      return res.status(404).json({ success: false, message: "Gig not found" });
+
+    Object.assign(gig, {
+      title,
+      description,
+      category,
+      subcategory,
+      tags,
+      packages,
+      isHourly,
+      hourlyRate,
+      images,
+    });
+
     await gig.save();
 
     res.json({ success: true, gig });

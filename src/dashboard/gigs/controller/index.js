@@ -189,11 +189,24 @@ export const updateGig = async (req, res) => {
  */
 export const deleteGig = async (req, res) => {
   try {
-    const gig = await gigService.findById(req.params.id);
-    if (!gig) return res.status(404).json({ message: "Gig not found" });
+    const authHeader = req.headers["authorization"];
+    const token = authHeader && authHeader.split(" ")[1];
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    if (!token)
+      return res.status(401).json({
+        sucess: false,
+        meaasge: "You Are Unauthorized to Access this module",
+      });
 
-    if (gig.freelancerId.toString() !== req.user.freelancerProfile)
-      return res.status(403).json({ message: "Unauthorized" });
+    const userType = decoded.userType; // assuming auth middleware attaches user
+    let sellerId = decoded._id;
+    let query = {"_id":req.params.id};
+    if (userType === "Seller") {
+      sellerId = decoded._id;
+      query = { sellerId, _id:req.params.id};
+    }
+    const gig = await gigService.findOne(query);
+    if (!gig) return res.status(404).json({ message: "Gig not found" });
 
     await gig.deleteOne();
     res.json({ success: true, message: "Gig deleted" });

@@ -78,3 +78,49 @@ export const productDetails = async (req, res) => {
     res.status(500).json({ error: err.message });
   }
 }
+
+
+export const categorylsit = async(req,res)=>{
+  try {
+    console.log("data===>")
+    const data = await Category.find();
+    console.log(data)
+    res.status(200).json({
+      success:true,
+      "category":data
+    })
+    
+  } catch (err) {
+     res.status(500).json({ error: err.message });
+  }
+}
+export const subcategorylist= async(req,res)=>{
+  try {
+    
+    const data = await Subcategory.find();
+    console.log(data)
+    res.status(200).json({
+      success:true,
+      "subcategory":data
+    })
+    
+  } catch (err) {
+     res.status(500).json({ error: err.message });
+  }
+}
+
+export const categoryByProductList = async(req,res)=>{
+  try {
+    
+    const isCategory = await Category.findById({_id:req.params.id})
+    console.log(`isCategory==> ${isCategory}`)
+    if(!isCategory) return res.status(500).json({sucess:false, "error":"category not found"});
+    const gigs = await gigService.find({category:isCategory});
+    res.status(200).json({sucess:false, gigs});
+  } catch (err) {
+    res.status(500).json({
+      sucess:false,
+      error: err
+    })
+  }
+}

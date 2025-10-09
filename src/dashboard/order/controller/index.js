@@ -51,7 +51,7 @@ export const getOrders = async (req, res) => {
     if (search && search.trim() !== "") {
       baseQuery.$or = [
         { orderNumber: { $regex: search, $options: "i" } },
-        { "gigId.title": { $regex: search, $options: "i" } },
+        // { "gigId.title": { $regex: search, $options: "i" } },
       ];
     }
 

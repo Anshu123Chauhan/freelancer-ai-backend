@@ -3,7 +3,7 @@ import mongoose from 'mongoose'
 const orderSchema = new mongoose.Schema({
   gigId: {
     type: mongoose.Schema.Types.ObjectId,
-    ref: "Gig",
+    ref: "gig",
     required: true
   },
   customerId: {

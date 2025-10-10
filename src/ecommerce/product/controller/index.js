@@ -96,9 +96,9 @@ export const categorylsit = async(req,res)=>{
 }
 export const subcategorylist= async(req,res)=>{
   try {
-    
+     console.log(`checking data`)
     const data = await Subcategory.find();
-    console.log(data)
+    console.log(`data${data}`)
     res.status(200).json({
       success:true,
       "subcategory":data
@@ -116,6 +116,22 @@ export const categoryByProductList = async(req,res)=>{
     console.log(`isCategory==> ${isCategory}`)
     if(!isCategory) return res.status(500).json({sucess:false, "error":"category not found"});
     const gigs = await gigService.find({category:isCategory});
+    res.status(200).json({sucess:false, gigs});
+  } catch (err) {
+    res.status(500).json({
+      sucess:false,
+      error: err
+    })
+  }
+}
+
+export const subcategorydetails = async(req,res)=>{
+  try {
+    
+    const isSubCategory = await Subcategory.findById({_id:req.params.id})
+    console.log(`isCategory==> ${isSubCategory}`)
+    if(!isSubCategory) return res.status(500).json({sucess:false, "error":"Sub-Category not found"});
+    const gigs = await gigService.find({subCategory:isSubCategory});
     res.status(200).json({sucess:false, gigs});
   } catch (err) {
     res.status(500).json({

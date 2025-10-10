@@ -1,4 +1,5 @@
 import { Order } from "../../../models/Order.js";
+import {gigService} from '../../../models/Gigs.js'
 import jwt from "jsonwebtoken";
 
 export const getOrders = async (req, res) => {
@@ -132,5 +133,72 @@ export const getOrderById = async (req, res) => {
       message: "Server error",
       error: error.message,
     });
+  }
+};
+/** 
+// Seller updating order status
+// Admin modifying pricing / delivery date
+// Recalculate total price if totalHours changes (for hourly gigs)
+*/
+export const updateOrder = async (req, res) => {
+  try {
+    const { id } = req.params; // orderId
+    const { status, totalHours, deliveryDate } = req.body;
+
+   const authHeader = req.headers["authorization"];
+    const token = authHeader && authHeader.split(" ")[1];
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    if (!token)
+      return res.status(401).json({
+        sucess: false,
+        meaasge: "You Are Unauthorized to Access this module",
+      });
+    const authId = decoded._id;
+    const authidType = decoded.userType;
+    let QueryData;
+    // console.log(`authId==> ${authId}, authidType==> ${authidType}`);
+    if (authidType === "Seller") {
+      QueryData = { _id: id, sellerId: authId };
+    }
+    if (authidType === "Admin") {
+      QueryData = { _id: id };
+    }
+    // Find order
+    const order = await Order.findOne(QueryData);
+    if (!order) return res.status(404).json({ success: false, message: "Order not found" });
+
+    // Fetch gig to check if it's hourly
+    const gig = await gigService.findById(order.gigId);
+
+    if (!gig) return res.status(404).json({ success: false, message: "Gig not found" });
+
+    // Update fields
+    if (status) order.status = status;
+
+    if (deliveryDate) {
+      const parsedDate = new Date(deliveryDate);
+      if (isNaN(parsedDate)) {
+        return res.status(400).json({ success: false, message: "Invalid deliveryDate" });
+      }
+      order.deliveryDate = parsedDate;
+    }
+
+    // Handle hourly gig updates
+    if (gig.isHourly && totalHours) {
+      order.totalHours = totalHours;
+      order.totalPrice = gig.hourlyRate * totalHours;
+    }
+
+    // Save updated order
+    await order.save();
+
+    return res.status(200).json({
+      success: true,
+      message: "Order updated successfully",
+      data: order,
+    });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ success: false, message: "Server error", error: error.message });
   }
 };
